@@ -644,18 +644,44 @@ export class MarkovProcessGraph {
     return this._participants;
   }
 
+  /**
+   * Returns a canonical ordering of the nodes in the graph.
+   *
+   * No assumptions should be made about the node order, other than
+   * that it is stable for any given MarkovProcessGraph.
+   */
+  nodeOrder(): $ReadOnlyArray<NodeAddressT> {
+    return Array.from(this._nodes.keys()).sort();
+  }
+
   node(address: NodeAddressT): MarkovNode | null {
     NodeAddress.assertValid(address);
     return this._nodes.get(address) || null;
   }
 
+  /**
+   * Iterate over the nodes in the graph. If a prefix is provided,
+   * only nodes matching that prefix will be returned.
+   *
+   * The nodes are always iterated over in the node order.
+   */
   *nodes(options?: {|+prefix: NodeAddressT|}): Iterator<MarkovNode> {
     const prefix = options ? options.prefix : NodeAddress.empty;
-    for (const node of this._nodes.values()) {
-      if (NodeAddress.hasPrefix(node.address, prefix)) {
-        yield node;
+    for (const address of this.nodeOrder()) {
+      if (NodeAddress.hasPrefix(address, prefix)) {
+        yield NullUtil.get(this.node(address));
       }
     }
+  }
+
+  /**
+   * Returns a canonical ordering of the edges in the graph.
+   *
+   * No assumptions should be made about the edge order, other than
+   * that it is stable for any given MarkovProcessGraph.
+   */
+  edgeOrder(): $ReadOnlyArray<MarkovEdgeAddressT> {
+    return Array.from(this._edges.keys()).sort();
   }
 
   edge(address: MarkovEdgeAddressT): MarkovEdge | null {
@@ -663,14 +689,19 @@ export class MarkovProcessGraph {
     return this._edges.get(address) || null;
   }
 
+  /**
+   * Iterate over the edges in the graph.
+   *
+   * The edges are always iterated over in the edge order.
+   */
   *edges(): Iterator<MarkovEdge> {
-    for (const edge of this._edges.values()) {
-      yield edge;
+    for (const addr of this.edgeOrder()) {
+      yield NullUtil.get(this.edge(addr));
     }
   }
 
   *inNeighbors(nodeAddress: NodeAddressT): Iterator<MarkovEdge> {
-    for (const edge of this._edges.values()) {
+    for (const edge of this.edges()) {
       if (edge.dst !== nodeAddress) {
         continue;
       }
@@ -679,21 +710,24 @@ export class MarkovProcessGraph {
   }
 
   toMarkovChain(): OrderedSparseMarkovChain {
-    const nodeOrder = Array.from(this._nodes.keys()).sort();
+    // Array-ify the iterators so we can iterate over them multiple times
+    // without needing to re-generate them.
+    const nodes = Array.from(this.nodes());
+    const edges = Array.from(this.edges());
     const nodeIndex: Map<
       NodeAddressT,
       number /* index into nodeOrder */
     > = new Map();
-    nodeOrder.forEach((n, i) => {
-      nodeIndex.set(n, i);
+    nodes.forEach((n, i) => {
+      nodeIndex.set(n.address, i);
     });
 
     // Check that out-edges sum to about 1.
     const nodeOutMasses = new Map();
-    for (const node of this._nodes.keys()) {
-      nodeOutMasses.set(node, 0);
+    for (const {address} of nodes) {
+      nodeOutMasses.set(address, 0);
     }
-    for (const edge of this._edges.values()) {
+    for (const edge of edges) {
       const a = edge.src;
       nodeOutMasses.set(
         a,
@@ -711,12 +745,12 @@ export class MarkovProcessGraph {
     }
 
     const inNeighbors: Map<NodeAddressT, MarkovEdge[]> = new Map();
-    for (const edge of this._edges.values()) {
+    for (const edge of edges) {
       MapUtil.pushValue(inNeighbors, edge.dst, edge);
     }
 
-    const chain = nodeOrder.map((addr) => {
-      const inEdges = NullUtil.orElse(inNeighbors.get(addr), []);
+    const chain = nodes.map(({address}) => {
+      const inEdges = NullUtil.orElse(inNeighbors.get(address), []);
       const inDegree = inEdges.length;
       const neighbor = new Uint32Array(inDegree);
       const weight = new Float64Array(inDegree);
@@ -735,7 +769,7 @@ export class MarkovProcessGraph {
       return {neighbor, weight};
     });
 
-    return {nodeOrder, chain};
+    return {nodeOrder: nodes.map((x) => x.address), chain};
   }
 
   toJSON(): MarkovProcessGraphJSON {
