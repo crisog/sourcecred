@@ -174,6 +174,9 @@ export class MarkovProcessGraph {
     const _nodes = new Map();
     const _edges = new Map();
 
+    const _scoringAddressToId = new Map(
+      participants.map((p) => [p.address, p.id])
+    );
     const _scoringAddresses = new Set(participants.map((p) => p.address));
 
     // _nodeOutMasses[a] = sum(e.pr for e in edges if e.src == a)
@@ -264,9 +267,9 @@ export class MarkovProcessGraph {
         epochStart: boundary,
       };
       addNode(accumulatorGadget.node(accumulator));
-      for (const scoringAddress of _scoringAddresses) {
+      for (const participant of participants) {
         const thisEpoch = {
-          owner: scoringAddress,
+          owner: participant.id,
           epochStart: boundary,
         };
         addNode(epochGadget.node(thisEpoch));
@@ -275,7 +278,7 @@ export class MarkovProcessGraph {
           const webbingAddress = {
             thisStart: boundary,
             lastStart: lastBoundary,
-            owner: scoringAddress,
+            owner: participant.id,
           };
           addEdge(
             forwardWebbingGadget.markovEdge(webbingAddress, gammaForward)
@@ -314,14 +317,15 @@ export class MarkovProcessGraph {
       address: NodeAddressT,
       edgeTimestampMs: TimestampMs
     ): NodeAddressT => {
-      if (!_scoringAddresses.has(address)) {
+      const owner = _scoringAddressToId.get(address);
+      if (owner == null) {
         return address;
       }
       const epochEndIndex = sortedIndex(timeBoundaries, edgeTimestampMs);
       const epochStartIndex = epochEndIndex - 1;
       const epochTimestampMs = timeBoundaries[epochStartIndex];
       return epochGadget.toRaw({
-        owner: address,
+        owner,
         epochStart: epochTimestampMs,
       });
     };

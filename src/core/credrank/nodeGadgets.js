@@ -4,6 +4,7 @@
  * They are most directly used by markovProcessGraph.js
  */
 
+import {type Uuid, fromString as uuidFromString} from "../../util/uuid";
 import {type NodeAddressT, NodeAddress} from "../graph";
 import type {TimestampMs} from "../../util/timestamp";
 import type {MarkovNode} from "./markovNode";
@@ -66,17 +67,13 @@ export const accumulatorGadget: NodeGadget<EpochAccumulatorAddress> = (() => {
 })();
 
 export type ParticipantEpochAddress = {|
-  +owner: NodeAddressT,
+  +owner: Uuid,
   +epochStart: TimestampMs,
 |};
 export const epochGadget: NodeGadget<ParticipantEpochAddress> = (() => {
   const prefix = NodeAddress.append(CORE_NODE_PREFIX, "USER_EPOCH");
   function toRaw(addr: ParticipantEpochAddress): NodeAddressT {
-    return NodeAddress.append(
-      prefix,
-      String(addr.epochStart),
-      ...NodeAddress.toParts(addr.owner)
-    );
+    return NodeAddress.append(prefix, String(addr.epochStart), addr.owner);
   }
   function fromRaw(addr: NodeAddressT): ParticipantEpochAddress {
     if (!NodeAddress.hasPrefix(addr, prefix)) {
@@ -85,9 +82,9 @@ export const epochGadget: NodeGadget<ParticipantEpochAddress> = (() => {
       );
     }
     const epochPrefixLength = NodeAddress.toParts(prefix).length;
-    const parts = NodeAddress.toParts(addr);
-    const epochStart = +parts[epochPrefixLength];
-    const owner = NodeAddress.fromParts(parts.slice(epochPrefixLength + 1));
+    const parts = NodeAddress.toParts(addr).slice(epochPrefixLength);
+    const epochStart = +parts[0];
+    const owner = uuidFromString(parts[1]);
     return {
       owner,
       epochStart,
