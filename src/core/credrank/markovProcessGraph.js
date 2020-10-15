@@ -148,6 +148,7 @@ export type MarkovProcessGraphJSON = Compatible<{|
   // The -Infinity and +Infinity epoch boundaries must be stripped before
   // JSON serialization.
   +finiteEpochBoundaries: $ReadOnlyArray<number>,
+  +parameters: Parameters,
 |}>;
 
 export class MarkovProcessGraph {
@@ -155,17 +156,20 @@ export class MarkovProcessGraph {
   _edges: Map<MarkovEdgeAddressT, MarkovEdge>;
   _participants: $ReadOnlyArray<Participant>;
   _epochBoundaries: $ReadOnlyArray<number>;
+  _parameters: Parameters;
 
   constructor(
     nodes: Map<NodeAddressT, MarkovNode>,
     edges: Map<MarkovEdgeAddressT, MarkovEdge>,
     participants: $ReadOnlyArray<Participant>,
-    epochBoundaries: $ReadOnlyArray<number>
+    epochBoundaries: $ReadOnlyArray<number>,
+    parameters: Parameters
   ) {
     this._nodes = nodes;
     this._edges = edges;
     this._epochBoundaries = deepFreeze(epochBoundaries);
     this._participants = deepFreeze(participants);
+    this._parameters = deepFreeze(parameters);
   }
 
   static new(args: Arguments): MarkovProcessGraph {
@@ -433,7 +437,13 @@ export class MarkovProcessGraph {
       }
     }
 
-    return new MarkovProcessGraph(_nodes, _edges, participants, timeBoundaries);
+    return new MarkovProcessGraph(
+      _nodes,
+      _edges,
+      participants,
+      timeBoundaries,
+      parameters
+    );
   }
 
   epochBoundaries(): $ReadOnlyArray<number> {
@@ -442,6 +452,10 @@ export class MarkovProcessGraph {
 
   participants(): $ReadOnlyArray<Participant> {
     return this._participants;
+  }
+
+  parameters(): Parameters {
+    return this._parameters;
   }
 
   /**
@@ -607,6 +621,7 @@ export class MarkovProcessGraph {
         1,
         this._epochBoundaries.length - 1
       ),
+      parameters: this._parameters,
     });
   }
 
@@ -616,6 +631,7 @@ export class MarkovProcessGraph {
       indexedEdges,
       participants,
       finiteEpochBoundaries,
+      parameters,
     } = fromCompat(COMPAT_INFO, j);
     const epochBoundaries = [-Infinity, ...finiteEpochBoundaries, Infinity];
     const sortedNodeAddresses = [
@@ -634,7 +650,8 @@ export class MarkovProcessGraph {
       new Map(sortedNodes.map((n) => [n.address, n])),
       new Map(edges.map((e) => [markovEdgeAddressFromMarkovEdge(e), e])),
       participants,
-      epochBoundaries
+      epochBoundaries,
+      parameters
     );
   }
 }

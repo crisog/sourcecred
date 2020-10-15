@@ -195,11 +195,6 @@ describe("core/credrank/markovProcessGraph", () => {
     });
   });
 
-  it("has the correct epoch boundaries for the given intervals", () => {
-    const expected = [-Infinity, 0, 2, Infinity];
-    expect(markovProcessGraph().epochBoundaries()).toEqual(expected);
-  });
-
   describe("gadgets", () => {
     describe("seed", () => {
       it("has a seed node", () => {
@@ -399,6 +394,16 @@ describe("core/credrank/markovProcessGraph", () => {
       const edgesActual = Array.from(mpg.edges());
       const edgesExpected = edgeOrder.map((x) => mpg.edge(x));
       expect(edgesActual).toEqual(edgesExpected);
+    });
+    it("has the correct epoch boundaries for the given intervals", () => {
+      const expected = [-Infinity, 0, 2, Infinity];
+      expect(markovProcessGraph().epochBoundaries()).toEqual(expected);
+    });
+    it("has the right participants", () => {
+      expect(markovProcessGraph().participants()).toEqual([participant]);
+    });
+    it("has the right parameters", () => {
+      expect(markovProcessGraph().parameters()).toEqual(parameters);
     });
   });
 
