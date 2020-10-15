@@ -165,6 +165,7 @@ const webbingEdgePrefix = EdgeAddress.fromParts([
  */
 export const forwardWebbingGadget: EdgeGadget<WebbingAddress> = (() => {
   const prefix = markovEdgeAddress(webbingEdgePrefix, "F");
+  const prefixLength = MarkovEdgeAddress.toParts(prefix).length;
   const toRaw = ({thisStart, lastStart, owner}) =>
     MarkovEdgeAddress.append(
       prefix,
@@ -173,7 +174,7 @@ export const forwardWebbingGadget: EdgeGadget<WebbingAddress> = (() => {
       owner
     );
   const fromRaw = (address) => {
-    const parts = MarkovEdgeAddress.toParts(address).slice(prefix.length);
+    const parts = MarkovEdgeAddress.toParts(address).slice(prefixLength);
     const lastStart = +parts[0];
     const thisStart = +parts[1];
     const owner = uuidFromString(parts[2]);
@@ -206,6 +207,7 @@ export const forwardWebbingGadget: EdgeGadget<WebbingAddress> = (() => {
  */
 export const backwardWebbingGadget: EdgeGadget<WebbingAddress> = (() => {
   const prefix = markovEdgeAddress(webbingEdgePrefix, "B");
+  const prefixLength = MarkovEdgeAddress.toParts(prefix).length;
   const toRaw = ({thisStart, lastStart, owner}) =>
     MarkovEdgeAddress.append(
       prefix,
@@ -214,7 +216,7 @@ export const backwardWebbingGadget: EdgeGadget<WebbingAddress> = (() => {
       owner
     );
   const fromRaw = (address) => {
-    const parts = MarkovEdgeAddress.toParts(address).slice(prefix.length);
+    const parts = MarkovEdgeAddress.toParts(address).slice(prefixLength);
     const lastStart = +parts[0];
     const thisStart = +parts[1];
     const owner = uuidFromString(parts[2]);

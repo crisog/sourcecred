@@ -226,12 +226,16 @@ export class MarkovProcessGraph {
       if (_edges.has(mae)) {
         throw new Error("Edge conflict: " + mae);
       }
+      _edges.set(mae, edge);
+      recordTransitionProbability(edge);
+    };
+    const recordTransitionProbability = (edge: MarkovEdge) => {
       const pr = edge.transitionProbability;
       if (pr < 0 || pr > 1) {
+        const mae = markovEdgeAddressFromMarkovEdge(edge);
         const name = MarkovEdgeAddress.toString(mae);
         throw new Error(`Invalid transition probability for ${name}: ${pr}`);
       }
-      _edges.set(mae, edge);
       _nodeOutMasses.set(edge.src, (_nodeOutMasses.get(edge.src) || 0) + pr);
     };
 
@@ -270,22 +274,22 @@ export class MarkovProcessGraph {
           owner: participant.id,
           epochStart: boundary,
         };
-        addEdge(payoutGadget.markovEdge(thisEpoch, beta));
+        recordTransitionProbability(payoutGadget.markovEdge(thisEpoch, beta));
         if (lastBoundary != null) {
           const webbingAddress = {
             thisStart: boundary,
             lastStart: lastBoundary,
             owner: participant.id,
           };
-          addEdge(
+          recordTransitionProbability(
             forwardWebbingGadget.markovEdge(webbingAddress, gammaForward)
           );
-          addEdge(
+          recordTransitionProbability(
             backwardWebbingGadget.markovEdge(webbingAddress, gammaBackward)
           );
         }
-        lastBoundary = boundary;
       }
+      lastBoundary = boundary;
     }
 
     // Add minting edges, from the seed to positive-weight graph nodes
@@ -499,12 +503,19 @@ export class MarkovProcessGraph {
    * that it is stable for any given MarkovProcessGraph.
    */
   edgeOrder(): $ReadOnlyArray<MarkovEdgeAddressT> {
-    return Array.from(this._edges.keys()).sort();
+    const real = Array.from(this._edges.keys()).sort();
+    const virtual = Array.from(
+      virtualizedMarkovEdgeAddresses(this._epochBoundaries, this._participants)
+    );
+    return [...real, ...virtual];
   }
 
   edge(address: MarkovEdgeAddressT): MarkovEdge | null {
     MarkovEdgeAddress.assertValid(address);
-    return this._edges.get(address) || null;
+    return (
+      this._edges.get(address) ||
+      virtualizedMarkovEdge(address, this._parameters)
+    );
   }
 
   /**
@@ -684,6 +695,49 @@ function virtualizedNode(address: NodeAddressT): MarkovNode | null {
   }
   if (NodeAddress.hasPrefix(address, seedGadget.prefix)) {
     return seedGadget.node();
+  }
+  return null;
+}
+
+function* virtualizedMarkovEdgeAddresses(
+  epochBoundaries: $ReadOnlyArray<TimestampMs>,
+  participants: $ReadOnlyArray<Participant>
+): Iterable<MarkovEdgeAddressT> {
+  let lastStart = null;
+  for (const epochStart of epochBoundaries) {
+    for (const {id} of participants) {
+      yield payoutGadget.toRaw({owner: id, epochStart});
+      if (lastStart != null) {
+        const webbingAddress = {thisStart: epochStart, lastStart, owner: id};
+        yield forwardWebbingGadget.toRaw(webbingAddress);
+        yield backwardWebbingGadget.toRaw(webbingAddress);
+      }
+    }
+    lastStart = epochStart;
+  }
+}
+
+function virtualizedMarkovEdge(
+  address: MarkovEdgeAddressT,
+  parameters: Parameters
+): MarkovEdge | null {
+  if (MarkovEdgeAddress.hasPrefix(address, payoutGadget.prefix)) {
+    return payoutGadget.markovEdge(
+      payoutGadget.fromRaw(address),
+      parameters.beta
+    );
+  }
+  if (MarkovEdgeAddress.hasPrefix(address, forwardWebbingGadget.prefix)) {
+    return forwardWebbingGadget.markovEdge(
+      forwardWebbingGadget.fromRaw(address),
+      parameters.gammaForward
+    );
+  }
+  if (MarkovEdgeAddress.hasPrefix(address, backwardWebbingGadget.prefix)) {
+    return backwardWebbingGadget.markovEdge(
+      backwardWebbingGadget.fromRaw(address),
+      parameters.gammaBackward
+    );
   }
   return null;
 }
