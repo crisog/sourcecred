@@ -401,4 +401,15 @@ describe("core/credrank/markovProcessGraph", () => {
       expect(edgesActual).toEqual(edgesExpected);
     });
   });
+
+  describe("to/froJSON", () => {
+    it("has round trip equality", () => {
+      const mpg = markovProcessGraph();
+      const mpgJson = mpg.toJSON();
+      const mpg_ = MarkovProcessGraph.fromJSON(mpgJson);
+      const mpgJson_ = mpg_.toJSON();
+      expect(mpg).toEqual(mpg_);
+      expect(mpgJson).toEqual(mpgJson_);
+    });
+  });
 });

@@ -612,7 +612,7 @@ export class MarkovProcessGraph {
 
     return new MarkovProcessGraph(
       new Map(sortedNodes.map((n) => [n.address, n])),
-      new Map(edges.map((e) => [e.address, e])),
+      new Map(edges.map((e) => [markovEdgeAddressFromMarkovEdge(e), e])),
       participants,
       [-Infinity, ...finiteEpochBoundaries, Infinity]
     );
