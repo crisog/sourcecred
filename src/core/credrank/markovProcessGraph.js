@@ -266,7 +266,6 @@ export class MarkovProcessGraph {
           owner: participant.id,
           epochStart: boundary,
         };
-        addNode(epochGadget.node(thisEpoch));
         addEdge(payoutGadget.markovEdge(thisEpoch, beta));
         if (lastBoundary != null) {
           const webbingAddress = {
@@ -396,7 +395,10 @@ export class MarkovProcessGraph {
       for (const node of _nodes.values()) {
         yield node;
       }
-      for (const nodeAddress of virtualizedNodeAddresses(timeBoundaries)) {
+      for (const nodeAddress of virtualizedNodeAddresses(
+        timeBoundaries,
+        participants
+      )) {
         yield NullUtil.get(virtualizedNode(nodeAddress));
       }
     }
@@ -450,7 +452,9 @@ export class MarkovProcessGraph {
    */
   nodeOrder(): $ReadOnlyArray<NodeAddressT> {
     const real = Array.from(this._nodes.keys()).sort();
-    const virtual = Array.from(virtualizedNodeAddresses(this._epochBoundaries));
+    const virtual = Array.from(
+      virtualizedNodeAddresses(this._epochBoundaries, this._participants)
+    );
     return [...real, ...virtual];
   }
 
@@ -616,7 +620,7 @@ export class MarkovProcessGraph {
     const epochBoundaries = [-Infinity, ...finiteEpochBoundaries, Infinity];
     const sortedNodeAddresses = [
       ...sortedNodes.map((n) => n.address),
-      ...virtualizedNodeAddresses(epochBoundaries),
+      ...virtualizedNodeAddresses(epochBoundaries, participants),
     ];
     const edges = indexedEdges.map((e) => ({
       address: e.address,
@@ -640,20 +644,29 @@ export class MarkovProcessGraph {
  * virtualized node. The order must be stable.
  */
 function* virtualizedNodeAddresses(
-  epochBoundaries: $ReadOnlyArray<TimestampMs>
+  epochBoundaries: $ReadOnlyArray<TimestampMs>,
+  participants: $ReadOnlyArray<Participant>
 ): Iterable<NodeAddressT> {
   yield seedGadget.prefix;
   for (const epochStart of epochBoundaries) {
     yield accumulatorGadget.toRaw({epochStart});
+    for (const {id} of participants) {
+      yield epochGadget.toRaw({owner: id, epochStart});
+    }
   }
 }
 
 function virtualizedNode(address: NodeAddressT): MarkovNode | null {
-  if (NodeAddress.hasPrefix(address, seedGadget.prefix)) {
-    return seedGadget.node();
+  // Perf tweak: Check the most common node types first, and rarest
+  // last.
+  if (NodeAddress.hasPrefix(address, epochGadget.prefix)) {
+    return epochGadget.node(epochGadget.fromRaw(address));
   }
   if (NodeAddress.hasPrefix(address, accumulatorGadget.prefix)) {
     return accumulatorGadget.node(accumulatorGadget.fromRaw(address));
+  }
+  if (NodeAddress.hasPrefix(address, seedGadget.prefix)) {
+    return seedGadget.node();
   }
   return null;
 }
