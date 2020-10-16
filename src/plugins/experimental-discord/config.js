@@ -2,11 +2,7 @@
 
 import * as Combo from "../../util/combo";
 import * as Model from "./models";
-import {
-  type EmojiWeightMap,
-  type RoleWeightMap,
-  type ChannelWeightMap,
-} from "./createGraph";
+import {type EmojiWeightMap} from "./createGraph";
 
 export type {BotToken as DiscordToken} from "./models";
 
@@ -26,24 +22,6 @@ export type DiscordConfig = {|
   // You can get a custom emoji ID by right clicking the custom emoji and
   // copying it's URL, with the ID being the image file name.
   +reactionWeights: EmojiWeightMap,
-  // An object mapping a role to a weight, as in:
-  // {
-  //   "default": 0,
-  //   "core:626763367893303303": 2,
-  //   "contributor:456763457893303303": 1,
-  // }
-  // Note that roles have a snowflake identifier.
-  // default is used to set weights for members who don't have a specified role
-  +roleWeights: RoleWeightMap,
-  // An object mapping a channel to a weight, as in:
-  // {
-  //   "default": 0,
-  //   "memes:743890898781339658": 0.25,
-  //   "checkin:750011679852462220": 1,
-  // }
-  // Note that roles have a snowflake identifier.
-  // default is used to set weights for channels without special weights
-  +channelWeights: ChannelWeightMap,
 |};
 
 export const parser: Combo.Parser<DiscordConfig> = (() => {
@@ -51,7 +29,5 @@ export const parser: Combo.Parser<DiscordConfig> = (() => {
   return C.object({
     guildId: C.string,
     reactionWeights: C.dict(C.number),
-    roleWeights: C.dict(C.number),
-    channelWeights: C.dict(C.number),
   });
 })();
